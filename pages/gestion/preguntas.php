@@ -64,6 +64,34 @@ $idActividadSeleccionada = isset($_GET['id_actividad']) ? (int) $_GET['id_activi
 
 $preguntas = $controller->listarPorActividad($idActividadSeleccionada);
 
+// Calcular los bloques de la actividad seleccionada.
+$actividadBloques = null;
+
+if (!empty($idActividadSeleccionada)) {
+    $stmtBloques = $db->prepare("
+        SELECT modo_tiempo, tiempo_limite, preguntas_por_bloque,
+            (SELECT COUNT(*)
+             FROM preguntas p
+             WHERE p.id_actividad = a.id_actividad
+               AND p.estado = 'Activo') AS preguntas_activas
+        FROM actividades a
+        WHERE id_actividad = ?
+    ");
+
+    $stmtBloques->execute([(int) $idActividadSeleccionada]);
+    $actividadBloques = $stmtBloques->fetch(PDO::FETCH_ASSOC) ?: null;
+}
+
+$preguntasActivas = (int) ($actividadBloques['preguntas_activas'] ?? 0);
+$preguntasPorBloque = (int) ($actividadBloques['preguntas_por_bloque'] ?? 0);
+$minutosPorBloque = (int) ($actividadBloques['tiempo_limite'] ?? 0);
+
+$totalBloques = (
+    ($actividadBloques['modo_tiempo'] ?? '') === 'por_bloque'
+    && $preguntasPorBloque > 0
+    && $preguntasActivas > 0
+) ? (int) ceil($preguntasActivas / $preguntasPorBloque) : 0;
+
 
 
 $preguntaEditar = null;
@@ -429,7 +457,45 @@ if (isset($_GET['editar'])) {
                     </div>
 
                     <div class="card-body">
+                                    <?php if ($totalBloques > 0): ?>
+                    <div class="alert alert-primary mb-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <strong><i class="bi bi-layers"></i> Bloques de la actividad</strong>
+                            <span class="badge bg-primary fs-6">
+                                <?= $totalBloques ?> bloques
+                            </span>
+                        </div>
 
+                        <p class="small mt-2 mb-3">
+                            <?= $preguntasActivas ?> preguntas activas ·
+                            <?= $preguntasPorBloque ?> preguntas por bloque ·
+                            <?= $minutosPorBloque ?> minutos por bloque
+                        </p>
+
+                        <div class="row g-2">
+                            <?php for ($i = 1; $i <= $totalBloques; $i++):
+                                $desde = (($i - 1) * $preguntasPorBloque) + 1;
+                                $hasta = min($i * $preguntasPorBloque, $preguntasActivas);
+                                $cantidad = $hasta - $desde + 1;
+                            ?>
+                                <div class="col-sm-6 col-xl-4">
+                                    <div class="border rounded bg-white p-2 h-100">
+                                        <strong>Bloque <?= $i ?></strong>
+                                        <div class="small">Preguntas <?= $desde ?>–<?= $hasta ?></div>
+                                        <span class="badge bg-secondary">
+                                            <?= $cantidad ?> preguntas
+                                        </span>
+                                    </div>
+                                </div>
+                            <?php endfor; ?>
+                        </div>
+
+                        <p class="small mt-3 mb-0">
+                            Tiempo máximo total:
+                            <strong><?= $totalBloques * $minutosPorBloque ?> minutos</strong>
+                        </p>
+                    </div>
+                <?php endif; ?>                    
                         <?php if (empty($preguntas)): ?>
 
                             <p class="text-muted text-center py-4">No hay preguntas para esta actividad.</p>

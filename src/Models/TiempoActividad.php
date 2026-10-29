@@ -7,6 +7,7 @@
  *  - sin_limite:   no hay reloj (tiempo_limite = NULL).
  *  - total:        segundos para toda la actividad (en gestión se captura en minutos).
  *  - por_pregunta: segundos para cada pregunta.
+ *  - por_bloque:   segundos para cada bloque de preguntas.
  *
  * Gestión y estudiante usan esta misma clase para validar y mostrar el tiempo,
  * así ambos ven siempre la misma información.
@@ -16,12 +17,17 @@ final class TiempoActividad
     public const SIN_LIMITE = 'sin_limite';
     public const TOTAL = 'total';
     public const POR_PREGUNTA = 'por_pregunta';
-    public const MODOS = [self::SIN_LIMITE, self::TOTAL, self::POR_PREGUNTA];
+    public const POR_BLOQUE = 'por_bloque';
+    public const MODOS = [self::SIN_LIMITE, self::TOTAL, self::POR_PREGUNTA, self::POR_BLOQUE];
 
     public const MIN_TOTAL_MINUTOS = 1;
     public const MAX_TOTAL_MINUTOS = 600;
     public const MIN_PREGUNTA_SEGUNDOS = 5;
     public const MAX_PREGUNTA_SEGUNDOS = 600;
+    public const MIN_BLOQUE_MINUTOS = 1;
+    public const MAX_BLOQUE_MINUTOS = 600;
+    public const MIN_PREGUNTAS_BLOQUE = 2;
+    public const MAX_PREGUNTAS_BLOQUE = 50;
 
     /**
      * Devuelve un modo válido. Si la fila no trae modo_tiempo (por ejemplo, datos antiguos)
@@ -51,15 +57,35 @@ final class TiempoActividad
         return $resto === 0 ? $minutos . ' min' : $minutos . ' min ' . $resto . ' s';
     }
 
-    /** Texto para mostrar en listados: "Sin límite", "10 min en total" o "20 s por pregunta". */
-    public static function describir($segundos, $modo = null, ?int $numPreguntas = null): string
-    {
+    /**
+     * Texto para mostrar en listados según el modo de tiempo.
+     * Ejemplos: "Sin límite", "10 min en total", "20 s por pregunta" o
+     * "5 min por bloque de 4 preguntas (≈ 15 min en total)".
+     */
+    public static function describir(
+        $segundos,
+        $modo = null,
+        ?int $numPreguntas = null,
+        ?int $preguntasPorBloque = null
+    ): string {
         $modo = self::normalizarModo($modo, $segundos);
         if ($modo === self::SIN_LIMITE) {
             return 'Sin límite';
         }
         if ($modo === self::TOTAL) {
             return self::formatearDuracion($segundos) . ' en total';
+        }
+
+        if ($modo === self::POR_BLOQUE) {
+            $texto = self::formatearDuracion($segundos) . ' por bloque';
+            if ($preguntasPorBloque !== null && $preguntasPorBloque > 0) {
+                $texto .= ' de ' . $preguntasPorBloque . ' preguntas';
+                if ($numPreguntas !== null && $numPreguntas > 0) {
+                    $total = self::segundosTotales($segundos, self::POR_BLOQUE, $numPreguntas, $preguntasPorBloque);
+                    $texto .= ' (≈ ' . self::formatearDuracion($total) . ' en total)';
+                }
+            }
+            return $texto;
         }
 
         $texto = self::formatearDuracion($segundos) . ' por pregunta';
@@ -70,9 +96,16 @@ final class TiempoActividad
         return $texto;
     }
 
-    /** Segundos máximos para completar toda la actividad (0 = sin límite). */
-    public static function segundosTotales($segundos, $modo, int $numPreguntas): int
-    {
+    /**
+     * Segundos máximos para completar toda la actividad (0 = sin límite).
+     * En modo por_bloque, cada bloque recibe el tiempo completo configurado.
+     */
+    public static function segundosTotales(
+        $segundos,
+        $modo,
+        int $numPreguntas,
+        ?int $preguntasPorBloque = null
+    ): int {
         $segundos = max(0, (int) $segundos);
         $modo = self::normalizarModo($modo, $segundos);
         if ($modo === self::TOTAL) {
@@ -80,6 +113,13 @@ final class TiempoActividad
         }
         if ($modo === self::POR_PREGUNTA) {
             return $segundos * max(0, $numPreguntas);
+        }
+        if ($modo === self::POR_BLOQUE) {
+            if ($numPreguntas <= 0 || $preguntasPorBloque === null || $preguntasPorBloque <= 0) {
+                return 0;
+            }
+            $cantidadBloques = (int) ceil($numPreguntas / $preguntasPorBloque);
+            return $segundos * $cantidadBloques;
         }
 
         return 0;

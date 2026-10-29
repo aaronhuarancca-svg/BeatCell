@@ -814,3 +814,56 @@ input:focus-visible {
 .btn-siguiente:hover {
     background: #164998;
 }
+
+
+/* Información plegable del bloque */
+.btn-toggle-info-bloque {
+    display: block;
+    margin: 12px auto 18px;
+    padding: 10px 16px;
+    border: 1px solid #c5d7f5;
+    border-radius: 8px;
+    background: #edf4ff;
+    color: #174ea6;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.btn-toggle-info-bloque:hover {
+    background: #dceaff;
+}
+
+/* Temporizador grande y centrado */
+.contador-bloque-grande {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    margin: 14px auto 8px;
+    padding: 12px;
+    border-radius: 12px;
+    background: #edf4ff;
+    color: #174ea6;
+    text-align: center;
+    font-size: clamp(1.5rem, 4vw, 2.2rem);
+    font-weight: 800;
+    line-height: 1.2;
+    font-variant-numeric: tabular-nums;
+}
+
+.contador-bloque-grande.urgente {
+    background: #fff0f0;
+    color: #b42318;
+}
+
+#info-bloque h2 {
+    font-size: 1.2rem;
+}
+
+#info-bloque p {
+    font-size: 0.9rem;
+}
+
+.btn-toggle-info-bloque {
+    font-size: 0.85rem;
+}
